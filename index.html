@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Flash 2.5</title>
+    <style>
+        :root {
+            --bg-color: #000;
+            --lava-color: #ff4500;
+            --user-msg: #2b2b2b;
+            --gemini-msg: #1a1a1a;
+            --accent: #ff6a00;
+        }
+
+        body, html {
+            margin: 0; padding: 0;
+            background: var(--bg-color);
+            color: white;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        /* --- Анимация капающей лавы --- */
+        .lava-container {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100px;
+            z-index: 10; pointer-events: none;
+        }
+
+        .drop {
+            position: absolute;
+            background: var(--lava-color);
+            border-radius: 0 0 50% 50%;
+            animation: drip linear infinite;
+            filter: blur(2px);
+            box-shadow: 0 0 15px var(--lava-color);
+        }
+
+        @keyframes drip {
+            0% { transform: translateY(-100%) scaleX(1.2); }
+            30% { transform: translateY(0) scaleX(1); }
+            80% { transform: translateY(80vh) scaleX(0.8); opacity: 1; }
+            100% { transform: translateY(100vh) scaleX(0.5); opacity: 0; }
+        }
+
+        /* --- Интерфейс --- */
+        .app-container {
+            display: flex;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        /* Меню (Sidebar) */
+        .sidebar {
+            position: fixed;
+            left: -280px; top: 0; width: 280px; height: 100%;
+            background: #111;
+            transition: 0.3s;
+            z-index: 100;
+            padding: 20px;
+            box-sizing: border-box;
+            border-right: 1px solid #333;
+        }
+
+        .sidebar.active { left: 0; }
+
+        .menu-btn {
+            position: fixed;
+            top: 20px; left: 20px;
+            z-index: 101;
+            cursor: pointer;
+            font-size: 24px;
+        }
+
+        /* Чат */
+        #chat-window {
+            flex: 1;
+            overflow-y: auto;
+            padding: 80px 20px 120px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 18px;
+            border-radius: 20px;
+            line-height: 1.4;
+            font-size: 15px;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: var(--user-msg);
+            border-bottom-right-radius: 4px;
+        }
+
+        .gemini-message {
+            align-self: flex-start;
+            background: var(--gemini-msg);
+            border-bottom-left-radius: 4px;
+            border: 1px solid #333;
+        }
+
+        /* Поле ввода */
+        .input-area {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .input-card {
+            background: #1a1a1a;
+            border-radius: 40px;
+            padding: 10px 20px;
+            display: flex;
+            align-items: center;
+            border: 1px solid #333;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        input {
+            background: transparent;
+            border: none;
+            color: white;
+            flex: 1;
+            padding: 10px;
+            outline: none;
+            font-size: 16px;
+        }
+
+        .send-btn {
+            background: var(--accent);
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            cursor: pointer;
+            color: white;
+            font-weight: bold;
+        }
+
+        .new-chat-btn {
+            width: 100%;
+            padding: 10px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        .chat-item {
+            padding: 10px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            font-size: 14px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="lava-container" id="lava"></div>
+
+    <div class="menu-btn" onclick="toggleMenu()">☰</div>
+
+    <div class="sidebar" id="sidebar">
+        <button class="new-chat-btn" onclick="createNewChat()">+ Новый чат</button>
+        <div id="user-info" style="font-size: 12px; color: #666; margin-bottom: 10px;"></div>
+        <div id="history-list"></div>
+    </div>
+
+    <div class="app-container">
+        <div id="chat-window"></div>
+        
+        <div class="input-area">
+            <div class="input-card">
+                <input type="text" id="user-input" placeholder="Спроси Gemini..." onkeypress="handleKey(event)">
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEYS = [
+            'AIzaSyD32QYoKei9eAHhzYVF8vDF2ksC08aGXdg',
+            'AIzaSyCeFKuED-hU6Ly-4O0eb-0tjk3SCSHgvkE'
+        ];
+        let currentKeyIndex = 0;
+        
+        // Данные пользователя
+        let userData = JSON.parse(localStorage.getItem('gemini_user')) || {
+            id: 'user_' + Math.random().toString(36).substr(2, 9),
+            nick: 'User' + Math.floor(Math.random() * 1000),
+            age: 18,
+            isFirstTime: false
+        };
+        localStorage.setItem('gemini_user', JSON.stringify(userData));
+
+        let chats = JSON.parse(localStorage.getItem('gemini_chats')) || [];
+        let currentChatId = null;
+
+        // Инициализация
+        window.onload = () => {
+            createLava();
+            document.getElementById('user-info').innerText = `ID: ${userData.id} | ${userData.nick}`;
+            renderHistory();
+            if (chats.length === 0) createNewChat();
+            else loadChat(chats[0].id);
+        };
+
+        function createLava() {
+            const container = document.getElementById('lava');
+            for (let i = 0; i < 15; i++) {
+                const drop = document.createElement('div');
+                drop.className = 'drop';
+                const size = Math.random() * 30 + 10;
+                drop.style.width = size + 'px';
+                drop.style.height = (size * 1.5) + 'px';
+                drop.style.left = Math.random() * 100 + '%';
+                drop.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                drop.style.animationDelay = (Math.random() * 10) + 's';
+                container.appendChild(drop);
+            }
+        }
+
+        function toggleMenu() {
+            document.getElementById('sidebar').classList.toggle('active');
+        }
+
+        function createNewChat() {
+            const newId = Date.now();
+            chats.unshift({ id: newId, title: "Новый диалог", messages: [] });
+            saveAndRender();
+            loadChat(newId);
+            toggleMenu();
+        }
+
+        function loadChat(id) {
+            currentChatId = id;
+            const chat = chats.find(c => c.id === id);
+            const container = document.getElementById('chat-window');
+            container.innerHTML = '';
+            chat.messages.forEach(msg => appendMessage(msg.role, msg.text));
+        }
+
+        function appendMessage(role, text) {
+            const container = document.getElementById('chat-window');
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            div.innerText = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            appendMessage('user', text);
+            input.value = '';
+
+            const currentChat = chats.find(c => c.id === currentChatId);
+            currentChat.messages.push({ role: 'user', text: text });
+
+            // Заглушка ожидания
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'message gemini-message';
+            loadingDiv.innerText = '...';
+            document.getElementById('chat-window').appendChild(loadingDiv);
+
+            try {
+                // Используем прокси для обхода блокировок в РФ
+                const proxyUrl = 'https://corsproxy.io/?';
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEYS[currentKeyIndex]}`;
+                
+                const response = await fetch(proxyUrl + encodeURIComponent(apiUrl), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: currentChat.messages.map(m => ({
+                            role: m.role === 'user' ? 'user' : 'model',
+                            parts: [{ text: m.text }]
+                        }))
+                    })
+                });
+
+                const data = await response.json();
+                const aiText = data.candidates[0].content.parts[0].text;
+                
+                loadingDiv.remove();
+                appendMessage('gemini', aiText);
+                currentChat.messages.push({ role: 'gemini', text: aiText });
+                if (currentChat.title === "Новый диалог") currentChat.title = text.substring(0, 20);
+                saveAndRender();
+
+            } catch (e) {
+                loadingDiv.innerText = "Ошибка доступа. Попробуйте позже или используйте прокси.";
+                console.error(e);
+            }
+        }
+
+        function handleKey(e) { if (e.key === 'Enter') sendMessage(); }
+
+        function saveAndRender() {
+            localStorage.setItem('gemini_chats', JSON.stringify(chats));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = '';
+            chats.forEach(chat => {
+                const item = document.createElement('div');
+                item.className = 'chat-item';
+                item.innerText = chat.title;
+                item.onclick = () => { loadChat(chat.id); toggleMenu(); };
+                list.appendChild(item);
+            });
+        }
+    </script>
+</body>
+</html>
