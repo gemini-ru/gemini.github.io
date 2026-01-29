@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Crystal RPG: Mercenary</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap" rel="stylesheet">
+
+<style>
+:root {
+    --bg-overlay: rgba(0, 0, 0, 0.3); 
+    --glass: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --accent-player: #00f2ff;
+    --accent-enemy: #ff4757;
+    --accent-energy: #e040fb;
+    --accent-boss: #ff9800;
+    --accent-gold: #ffd700;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
+
+body { height: 100vh; display: flex; justify-content: center; align-items: center; background: #000; overflow: hidden; color: #fff; }
+
+video { position: fixed; top: 50%; left: 50%; min-width: 100%; min-height: 100%; z-index: -2; transform: translate(-50%, -50%); object-fit: cover; }
+.bg-overlay { position: fixed; inset: 0; background: var(--bg-overlay); backdrop-filter: blur(3px); z-index: -1; }
+
+.game-window {
+    width: 95%; max-width: 450px; padding: 20px;
+    background: var(--glass); border: 1px solid var(--glass-border);
+    border-radius: 32px; backdrop-filter: blur(15px);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+}
+
+/* Header & Resources */
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.res-box { font-size: 14px; color: var(--accent-gold); font-weight: bold; background: rgba(0,0,0,0.4); padding: 5px 12px; border-radius: 20px; }
+
+/* Cards */
+.unit-card {
+    padding: 12px; background: rgba(0, 0, 0, 0.25);
+    border-radius: 20px; border: 1px solid var(--glass-border);
+    display: flex; gap: 12px; align-items: center; margin-bottom: 10px;
+}
+.unit-card.boss-mode { border: 1px solid var(--accent-boss); box-shadow: 0 0 15px rgba(255, 152, 0, 0.3); }
+
+.icon { width: 40px; height: 40px; }
+.info { flex-grow: 1; }
+.top-row { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 12px; font-weight: bold; }
+
+.bar-container { height: 6px; background: rgba(255,255,255,0.1); border-radius: 10px; overflow: hidden; margin-bottom: 4px; }
+.bar-fill { height: 100%; width: 100%; transition: width 0.3s ease; }
+.hp-p { background: var(--accent-player); }
+.hp-e { background: var(--accent-enemy); }
+.hp-boss { background: var(--accent-boss); }
+.en-p { background: var(--accent-energy); }
+
+/* Shop Section */
+.shop {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    margin: 15px 0; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 18px;
+}
+.shop-item {
+    font-size: 10px; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 12px;
+    cursor: pointer; border: 1px solid transparent; transition: 0.2s;
+}
+.shop-item:hover { border-color: var(--accent-gold); }
+.shop-item b { display: block; color: var(--accent-gold); font-size: 11px; }
+
+/* Buttons */
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+button {
+    padding: 10px; border-radius: 12px; border: none; cursor: pointer;
+    font-weight: bold; color: #fff; transition: 0.2s; font-size: 11px; text-transform: uppercase;
+}
+.btn-atk { background: linear-gradient(45deg, #ff4757, #ff6b81); grid-column: span 2; padding: 14px; font-size: 14px; }
+.btn-heal { background: rgba(46, 204, 113, 0.2); border: 1px solid #2ecc71; color: #2ecc71; }
+.btn-shield { background: rgba(52, 152, 219, 0.2); border: 1px solid #3498db; color: #3498db; }
+.btn-ult { background: var(--accent-energy); grid-column: span 2; }
+button:disabled { opacity: 0.3; filter: grayscale(1); }
+
+.battle-log {
+    margin-top: 15px; height: 60px; overflow-y: auto; font-size: 11px;
+    background: rgba(0,0,0,0.2); border-radius: 12px; padding: 8px; color: #bbb;
+}
+
+@keyframes damage { 0% { color: #fff; } 50% { color: #ff4757; transform: scale(1.1); } 100% { color: #fff; } }
+.anim-hit { animation: damage 0.2s ease; }
+</style>
+</head>
+<body>
+
+<video autoplay muted loop playsinline><source src="VID_20260129_180059_628.mp4" type="video/mp4"></video>
+<div class="bg-overlay"></div>
+
+<div class="game-window">
+    <div class="header">
+        <h1 style="font-size: 18px;">CRYSTAL RPG</h1>
+        <div class="res-box">💰 <span id="pGold">0</span></div>
+    </div>
+
+    <div id="pCard" class="unit-card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="var(--accent-player)"><path d="M12 2l9 4v6c0 5.5-3.8 10.7-9 12-5.2-1.3-9-6.5-9-12V6l9-4z"/></svg></div>
+        <div class="info">
+            <div class="top-row"><span>ГЕРОЙ (Ур. <span id="pLvl">1</span>)</span><span id="pAtkDisplay">⚔️ 10</span></div>
+            <div class="bar-container"><div id="pHpBar" class="bar-fill hp-p"></div></div>
+            <div class="bar-container" style="height:4px;"><div id="pEnBar" class="bar-fill en-p"></div></div>
+        </div>
+    </div>
+
+    <div id="eCard" class="unit-card">
+        <div class="icon" id="eIcon"></div>
+        <div class="info">
+            <div class="top-row"><span id="eName">Враг</span><span id="eAtkDisplay">⚔️ 5</span></div>
+            <div class="bar-container"><div id="eHpBar" class="bar-fill hp-e"></div></div>
+            <div style="font-size: 10px; opacity: 0.6;" id="eHpText">40/40 HP</div>
+        </div>
+    </div>
+
+    <div class="shop">
+        <div class="shop-item" onclick="game.buy('crit')">
+            <b>Крит. Удар (500💰)</b>
+            Шанс: <span id="sCrit">5</span>%
+        </div>
+        <div class="shop-item" onclick="game.buy('vamp')">
+            <b>Вампиризм (800💰)</b>
+            Уровень: <span id="sVamp">0</span>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn-atk" onclick="game.attack()">⚔️ МОЩНЫЙ УДАР</button>
+        <button class="btn-heal" onclick="game.heal()">🧪 ЗЕЛЬЕ (<span id="pPots">1</span>)</button>
+        <button class="btn-shield" id="btnShield" onclick="game.useShield()">🛡️ ЩИТ (30⚡)</button>
+        <button class="btn-ult" id="btnUlt" onclick="game.useUlt()">💥 СВЕРХНОВАЯ (60⚡)</button>
+    </div>
+
+    <div id="log" class="battle-log"></div>
+</div>
+
+<script>
+const game = {
+    p: { hp: 100, maxHp: 100, atk: 12, lvl: 1, pots: 1, energy: 0, gold: 0, crit: 5, vamp: 0 },
+    e: { hp: 0, maxHp: 0, atk: 0, isBoss: false, name: "" },
+    shieldActive: false,
+    isWait: false,
+
+    init() {
+        this.load();
+        this.spawnEnemy();
+        this.render();
+    },
+
+    save() { localStorage.setItem('crystal_mercenary_save', JSON.stringify(this.p)); },
+    load() {
+        const s = localStorage.getItem('crystal_mercenary_save');
+        if(s) this.p = JSON.parse(s);
+    },
+
+    spawnEnemy() {
+        this.e.isBoss = (this.p.lvl % 5 === 0);
+        const m = 1 + (this.p.lvl * 0.2); // Снизил множитель сложности
+        
+        if(this.e.isBoss) {
+            this.e.name = "СТРАЖ ПУСТОТЫ";
+            this.e.maxHp = Math.floor(80 * m); 
+            this.e.atk = Math.floor(12 * m);
+            this.msg("❗ <b>БОСС ПОЯВИЛСЯ! Используй щит!</b>");
+        } else {
+            this.e.name = ["Дрон", "Призрак", "Скорпион"][Math.floor(Math.random()*3)];
+            this.e.maxHp = Math.floor(25 * m);
+            this.e.atk = Math.floor(5 * m);
+        }
+        this.e.hp = this.e.maxHp;
+    },
+
+    async attack(mult = 1) {
+        if(this.isWait) return;
+        this.isWait = true;
+
+        let isCrit = Math.random() * 100 < this.p.crit;
+        let dmg = Math.floor(this.p.atk * mult * (isCrit ? 2 : 1) * (0.9 + Math.random()*0.2));
+        
+        this.e.hp -= dmg;
+        this.p.energy = Math.min(100, this.p.energy + 12);
+        
+        // Вампиризм
+        if(this.p.vamp > 0) {
+            let heal = Math.floor(dmg * (this.p.vamp * 0.05));
+            this.p.hp = Math.min(this.p.maxHp, this.p.hp + heal);
+        }
+
+        this.msg(isCrit ? `🔥 <b>КРИТ! ${dmg} урона!</b>` : `⚔️ Удар: ${dmg}`);
+        this.render();
+
+        if(this.e.hp <= 0) {
+            await new Promise(r => setTimeout(r, 500));
+            this.victory();
+        } else {
+            await this.enemyTurn();
+        }
+        this.isWait = false;
+        this.render();
+    },
+
+    async enemyTurn() {
+        await new Promise(r => setTimeout(r, 600));
+        let dmg = Math.floor(this.e.atk * (0.8 + Math.random()*0.4));
+        
+        if(this.shieldActive) {
+            dmg = Math.floor(dmg * 0.3);
+            this.msg("🛡️ <b>Щит заблокировал урон!</b>");
+            this.shieldActive = false;
+        }
+
+        this.p.hp -= dmg;
+        this.msg(`🔻 ${this.e.name} нанес ${dmg} урона.`);
+        
+        document.getElementById('pCard').classList.add('anim-hit');
+        this.render();
+        setTimeout(() => document.getElementById('pCard').classList.remove('anim-hit'), 200);
+
+        if(this.p.hp <= 0) {
+            alert("Поражение! Ты потерял немного золота.");
+            this.p.gold = Math.floor(this.p.gold * 0.7);
+            this.p.hp = this.p.maxHp;
+            this.save();
+            location.reload();
+        }
+    },
+
+    useShield() {
+        if(this.p.energy < 30 || this.isWait) return;
+        this.p.energy -= 30;
+        this.shieldActive = true;
+        this.msg("🛡️ Энергощит активирован!");
+        this.render();
+    },
+
+    useUlt() {
+        if(this.p.energy < 60 || this.isWait) return;
+        this.p.energy -= 60;
+        this.attack(2.5);
+    },
+
+    heal() {
+        if(this.p.pots <= 0 || this.isWait) return;
+        this.p.pots--;
+        this.p.hp = Math.min(this.p.maxHp, this.p.hp + Math.floor(this.p.maxHp * 0.5));
+        this.msg("🧪 Восстановление HP!");
+        this.render();
+        this.enemyTurn();
+    },
+
+    buy(type) {
+        if(type === 'crit' && this.p.gold >= 500) {
+            this.p.gold -= 500; this.p.crit += 3;
+            this.msg("📈 Крит повышен!");
+        } else if(type === 'vamp' && this.p.gold >= 800) {
+            this.p.gold -= 800; this.p.vamp += 1;
+            this.msg("🧛 Вампиризм прокачан!");
+        }
+        this.save();
+        this.render();
+    },
+
+    victory() {
+        const reward = Math.floor((this.e.isBoss ? 500 : 100) * (1 + this.p.lvl * 0.1));
+        this.p.gold += reward;
+        this.p.lvl++;
+        this.p.atk += 2;
+        this.p.maxHp += 10;
+        this.p.hp = this.p.maxHp;
+        
+        if(this.e.isBoss) this.p.pots += 2;
+        else if(Math.random() > 0.8) this.p.pots++;
+
+        this.msg(`🏆 Победа! +${reward}💰`);
+        this.save();
+        this.spawnEnemy();
+        this.render();
+    },
+
+    msg(t) {
+        const l = document.getElementById('log');
+        l.innerHTML = `<div style="margin-bottom:2px;">${t}</div>` + l.innerHTML;
+    },
+
+    render() {
+        document.getElementById('pHpBar').style.width = (this.p.hp/this.p.maxHp*100) + '%';
+        document.getElementById('pEnBar').style.width = this.p.energy + '%';
+        document.getElementById('pGold').innerText = this.p.gold;
+        document.getElementById('pLvl').innerText = this.p.lvl;
+        document.getElementById('pAtkDisplay').innerText = `⚔️ ${this.p.atk}`;
+        document.getElementById('pPots').innerText = this.p.pots;
+        document.getElementById('sCrit').innerText = this.p.crit;
+        document.getElementById('sVamp').innerText = this.p.vamp;
+
+        document.getElementById('eName').innerText = this.e.name;
+        document.getElementById('eAtkDisplay').innerText = `⚔️ ${this.e.atk}`;
+        document.getElementById('eHpBar').style.width = (this.e.hp/this.e.maxHp*100) + '%';
+        document.getElementById('eHpText').innerText = `${this.e.hp}/${this.e.maxHp} HP`;
+        
+        document.getElementById('btnShield').disabled = this.p.energy < 30;
+        document.getElementById('btnUlt').disabled = this.p.energy < 60;
+
+        const eCard = document.getElementById('eCard');
+        const eBar = document.getElementById('eHpBar');
+        if(this.e.isBoss) {
+            eCard.classList.add('boss-mode');
+            eBar.className = 'bar-fill hp-boss';
+            document.getElementById('eIcon').innerHTML = `<svg viewBox="0 0 24 24" fill="var(--accent-boss)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>`;
+        } else {
+            eCard.classList.remove('boss-mode');
+            eBar.className = 'bar-fill hp-e';
+            document.getElementById('eIcon').innerHTML = `<svg viewBox="0 0 24 24" fill="var(--accent-enemy)"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>`;
+        }
+    }
+};
+
+game.init();
+</script>
+</body>
+  </html>
