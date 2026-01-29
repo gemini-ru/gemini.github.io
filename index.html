@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Mini RPG</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+/* Видео фон */
+video {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+}
+
+/* Затемнение поверх видео */
+.bg {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.55);
+    z-index: -1;
+}
+
+/* Игровой интерфейс */
+.game {
+    max-width: 420px;
+    margin: 30px auto;
+    padding: 20px;
+    background: rgba(20,20,20,0.65);
+    backdrop-filter: blur(6px);
+    border-radius: 15px;
+    color: #fff;
+    box-shadow: 0 0 20px rgba(0,0,0,0.6);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 15px;
+}
+
+.stats, .enemy {
+    background: rgba(255,255,255,0.08);
+    padding: 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+button {
+    width: 100%;
+    padding: 12px;
+    margin-top: 8px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    background: #ff4757;
+    color: #fff;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #ff6b81;
+}
+
+.log {
+    margin-top: 10px;
+    font-size: 14px;
+    min-height: 40px;
+    opacity: 0.9;
+}
+</style>
+</head>
+<body>
+
+<video autoplay muted loop>
+    <source src="VID_20260129_180059_628.mp4" type="video/mp4">
+</video>
+<div class="bg"></div>
+
+<div class="game">
+    <h1>Mini RPG</h1>
+
+    <div class="stats">
+        ❤️ HP: <span id="hp">100</span><br>
+        ⚔️ Атака: <span id="atk">10</span><br>
+        ⭐ Уровень: <span id="lvl">1</span>
+    </div>
+
+    <div class="enemy">
+        👾 Враг: <span id="enemyName">Слизень</span><br>
+        ❤️ HP врага: <span id="enemyHp">40</span>
+    </div>
+
+    <button onclick="attack()">Атаковать</button>
+    <button onclick="heal()">Лечиться</button>
+
+    <div class="log" id="log">Бой начинается…</div>
+</div>
+
+<script>
+let player = {
+    hp: 100,
+    atk: 10,
+    lvl: 1
+};
+
+let enemy = {};
+
+function newEnemy() {
+    enemy = {
+        name: ["Слизень","Гоблин","Тень","Разбойник"][Math.floor(Math.random()*4)],
+        hp: 30 + player.lvl * 10,
+        atk: 5 + player.lvl * 2
+    };
+    updateUI();
+}
+
+function updateUI() {
+    hp.textContent = player.hp;
+    atk.textContent = player.atk;
+    lvl.textContent = player.lvl;
+    enemyHp.textContent = enemy.hp;
+    enemyName.textContent = enemy.name;
+}
+
+function attack() {
+    enemy.hp -= player.atk;
+    log.textContent = `Ты ударил врага на ${player.atk}`;
+
+    if (enemy.hp <= 0) {
+        player.lvl++;
+        player.atk += 2;
+        log.textContent = "Враг побеждён! Новый уровень!";
+        newEnemy();
+        return;
+    }
+
+    enemyAttack();
+}
+
+function enemyAttack() {
+    player.hp -= enemy.atk;
+    log.textContent += ` | Враг ударил на ${enemy.atk}`;
+
+    if (player.hp <= 0) {
+        log.textContent = "Ты проиграл… Игра перезапущена.";
+        player.hp = 100;
+        player.atk = 10;
+        player.lvl = 1;
+        newEnemy();
+    }
+    updateUI();
+}
+
+function heal() {
+    player.hp += 15;
+    if (player.hp > 100) player.hp = 100;
+    log.textContent = "Ты восстановил HP";
+    enemyAttack();
+}
+
+newEnemy();
+</script>
+
+</body>
+</html>
