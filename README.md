@@ -1,1 +1,1 @@
-# gemini.github.io
+# настраивается
