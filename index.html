@@ -1,483 +1,127 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AI Mobile Canvas Builder</title>
-    <!-- Библиотека JSZip для создания архивов -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #ffffff;
-            position: fixed;
-        }
-
-        /* Холст для верстки */
-        #canvas {
-            width: 100vw;
-            height: calc(100vh - 210px);
-            position: relative;
-            background-color: #ffffff;
-            overflow: auto;
-            touch-action: none;
-        }
-
-        .draggable-element {
-            position: absolute !important;
-            touch-action: none;
-            user-select: none;
-            -webkit-user-select: none;
-            outline: 2px dashed transparent;
-            transition: outline 0.15s ease;
-        }
-
-        .draggable-element.selected {
-            outline: 2px solid #007aff;
-        }
-
-        /* Экранная Консоль Логов/Ошибок */
-        #debug-console {
-            width: 100vw;
-            height: 70px;
-            background: #1c1c1e;
-            color: #00ff66;
-            font-family: monospace;
-            font-size: 11px;
-            padding: 6px 10px;
-            overflow-y: auto;
-            border-top: 1px solid #333;
-            box-shadow: inset 0 2px 6px rgba(0,0,0,0.5);
-            word-break: break-all;
-        }
-
-        .log-line { margin-bottom: 3px; }
-        .log-error { color: #ff453a; }
-        .log-warn { color: #ffd60a; }
-
-        /* Нижняя панель */
-        #bottom-panel {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100vw;
-            height: 140px;
-            background: #f8f9fa;
-            border-top: 1px solid #e5e5ea;
-            display: flex;
-            flex-direction: column;
-            padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0px)) 12px;
-            gap: 6px;
-            box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.08);
-            z-index: 1000;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 8px;
-            width: 100%;
-        }
-
-        #prompt-input {
-            flex: 1;
-            padding: 10px 12px;
-            border: 1px solid #c7c7cc;
-            border-radius: 10px;
-            font-size: 14px;
-            outline: none;
-            background: #ffffff;
-            min-width: 0;
-        }
-
-        #prompt-input:focus { border-color: #007aff; }
-
-        button {
-            padding: 10px 14px;
-            background-color: #007aff;
-            color: #ffffff;
-            border: none;
-            border-radius: 10px;
-            font-weight: 600;
-            font-size: 13px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            white-space: nowrap;
-        }
-
-        button:active { opacity: 0.7; }
-
-        .actions-group {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 6px;
-            width: 100%;
-        }
-
-        button.secondary { background-color: #8e8e93; font-size: 11px; }
-        button.danger { background-color: #ff3b30; font-size: 11px; }
-        button.success { background-color: #34c759; font-size: 11px; }
-
-        #status-text {
-            font-size: 11px;
-            color: #8e8e93;
-            text-align: center;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-
-        /* Модальное окно */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100vw;
-            height: 100vh;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
-            justify-content: center;
-            align-items: flex-end;
-        }
-
-        .modal-content {
-            background: #ffffff;
-            width: 100vw;
-            height: 85vh;
-            border-radius: 16px 16px 0 0;
-            display: flex;
-            flex-direction: column;
-            padding: 14px;
-            gap: 10px;
-        }
-
-        .code-tabs { display: flex; gap: 6px; }
-
-        .tab-btn {
-            padding: 6px 12px;
-            background: #e5e5ea;
-            color: #000;
-            border-radius: 6px;
-            font-size: 12px;
-        }
-
-        .tab-btn.active { background: #007aff; color: #fff; }
-
-        textarea {
-            width: 100%;
-            flex: 1;
-            font-family: monospace;
-            font-size: 12px;
-            padding: 10px;
-            border: 1px solid #c7c7cc;
-            border-radius: 8px;
-            resize: none;
-            background: #1c1c1e;
-            color: #33ff66;
-        }
-
-        .modal-actions { display: flex; gap: 8px; }
-        .modal-actions button { flex: 1; }
-    </style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0c12" />
+  <meta name="description" content="Учебный помощник на Gemini 3.6 Flash с PDF-учебниками." />
+  <title>StudyAI — учебный помощник</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-
-    <!-- Холст -->
-    <div id="canvas"></div>
-
-    <!-- Встроенная консоль -->
-    <div id="debug-console">
-        <div class="log-line">[System]: Консоль готова к работе.</div>
-    </div>
-
-    <!-- Панель управления -->
-    <div id="bottom-panel">
-        <div id="status-text">Готово к работе</div>
-        <div class="input-group">
-            <input type="text" id="prompt-input" placeholder="Введите команду...">
-            <button id="send-btn">Создать</button>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          <div class="brand-name">StudyAI</div>
+          <div class="brand-sub">учебник + Gemini</div>
         </div>
-        <div class="actions-group">
-            <button class="secondary" id="open-code-btn">Код</button>
-            <button class="danger" id="clear-btn">Очистить</button>
-            <button class="success" id="download-zip-btn">ZIP</button>
-        </div>
-    </div>
+      </div>
+      <button class="icon-btn" id="settingsBtn" type="button" aria-label="Настройки">⚙</button>
+    </header>
 
-    <!-- Модальное окно редактора кода -->
-    <div class="modal" id="code-modal">
-        <div class="modal-content">
-            <div class="code-tabs">
-                <button class="tab-btn active" onclick="switchTab('html', event)">HTML</button>
-                <button class="tab-btn" onclick="switchTab('css', event)">CSS</button>
-                <button class="tab-btn" onclick="switchTab('js', event)">JS</button>
+    <main class="main">
+      <section class="hero">
+        <span class="pill">GEMINI 3.6 FLASH</span>
+        <h1>Учёба без поиска по страницам.</h1>
+        <p>Выбери предмет, укажи номер задания или параграфа — ИИ найдёт нужное в PDF и напишет понятный ответ.</p>
+      </section>
+
+      <section class="card controls-card">
+        <div class="section-title">1. Предмет</div>
+        <div class="subject-grid" id="subjectGrid">
+          <button class="subject active" data-subject="geometry" type="button"><span>△</span><strong>Геометрия</strong><small>geometry.pdf</small></button>
+          <button class="subject" data-subject="algebra" type="button"><span>∑</span><strong>Алгебра</strong><small>algebra.pdf</small></button>
+          <button class="subject" data-subject="physics" type="button"><span>⚡</span><strong>Физика</strong><small>physics.pdf</small></button>
+          <button class="subject" data-subject="history" type="button"><span>⌛</span><strong>История</strong><small>history.pdf</small></button>
+          <button class="subject" data-subject="chemistry" type="button"><span>⚗</span><strong>Химия</strong><small>chemistry.pdf</small></button>
+          <button class="subject" data-subject="geography" type="button"><span>🌍</span><strong>География</strong><small>geography.pdf</small></button>
+        </div>
+
+        <div class="form-grid">
+          <label class="field">
+            <span>2. Номер / параграф</span>
+            <input id="itemNumber" type="text" inputmode="text" autocomplete="off" placeholder="Например: № 17 или § 12" />
+          </label>
+
+          <label class="field">
+            <span>3. Что сделать</span>
+            <select id="taskType">
+              <option value="answer">Ответ на задание</option>
+              <option value="summary">Конспект параграфа</option>
+              <option value="retelling">Краткий пересказ</option>
+              <option value="explain">Объяснить тему</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="mode-row">
+          <div class="field grow">
+            <span>4. Режим ответа</span>
+            <div class="segmented">
+              <button type="button" class="mode active" data-mode="short">Кратко</button>
+              <button type="button" class="mode" data-mode="normal">Обычно</button>
             </div>
-            <textarea id="code-editor" spellcheck="false"></textarea>
-            <div class="modal-actions">
-                <button class="secondary" onclick="closeModal()">Отмена</button>
-                <button onclick="applyCodeChanges()">Применить</button>
-            </div>
+          </div>
+          <button class="generate-btn" id="generateBtn" type="button">
+            <span>Получить ответ</span><span>↗</span>
+          </button>
         </div>
-    </div>
 
-    <script>
-        // --- ПЕРЕХВАТ ЛОГОВ В ЭКРАННУЮ КОНСОЛЬ ---
-        const debugConsole = document.getElementById('debug-console');
-        function logToConsole(message, type = 'info') {
-            const line = document.createElement('div');
-            line.className = 'log-line ' + (type === 'error' ? 'log-error' : (type === 'warn' ? 'log-warn' : ''));
-            const time = new Date().toLocaleTimeString();
-            line.innerText = `[${time}] ${message}`;
-            debugConsole.appendChild(line);
-            debugConsole.scrollTop = debugConsole.scrollHeight;
-        }
+        <label class="field custom-field">
+          <span>Дополнительно <em>необязательно</em></span>
+          <textarea id="extraPrompt" rows="2" placeholder="Например: реши с объяснением формулы и напиши так, чтобы можно было переписать в тетрадь."></textarea>
+        </label>
+      </section>
 
-        window.onerror = function(msg, url, lineNo) {
-            logToConsole(`Error: ${msg} (строка ${lineNo})`, 'error');
-            return false;
-        };
+      <section class="card status-card" id="statusCard">
+        <div class="status-dot"></div>
+        <div>
+          <strong id="statusTitle">Готово к работе</strong>
+          <p id="statusText">Добавь PDF-файлы в корень репозитория и укажи API-ключ в настройках.</p>
+        </div>
+      </section>
 
-        const originalConsoleLog = console.log;
-        const originalConsoleError = console.error;
-        console.log = function(...args) {
-            originalConsoleLog.apply(console, args);
-            logToConsole(args.join(' '));
-        };
-        console.error = function(...args) {
-            originalConsoleError.apply(console, args);
-            logToConsole(args.join(' '), 'error');
-        };
+      <section class="card answer-card hidden" id="answerCard">
+        <div class="answer-head">
+          <div>
+            <span class="eyebrow" id="answerMeta">ГЕОМЕТРИЯ · № 17</span>
+            <h2 id="answerTitle">Ответ</h2>
+          </div>
+          <button class="copy-btn" id="copyBtn" type="button">Копировать</button>
+        </div>
+        <div class="answer-body" id="answerBody"></div>
+      </section>
+    </main>
 
-        // --- ВШИТЫЙ КЛЮЧ И ВЕРСИИ МОДЕЛЕЙ ---
-        const GEMINI_API_KEY = "AIzaSyDIpB2qfDA-zWS-fe0RRkmIvNMLqOGOptQ";
-        
-        // Перебор поддерживаемых моделей REST API
-        const MODELS_TO_TRY = ["gemini-2.5-flash", "gemini-1.5-flash"];
+    <footer class="footer">PDF читается прямо из репозитория • Ответ генерирует Gemini 3.6 Flash</footer>
+  </div>
 
-        let currentCode = { html: '', css: '', js: '' };
-        let currentTab = 'html';
-        let selectedElement = null;
+  <dialog id="settingsDialog">
+    <form method="dialog" class="dialog-card" id="settingsForm">
+      <div class="dialog-head">
+        <div>
+          <span class="eyebrow">НАСТРОЙКИ</span>
+          <h2>Подключение Gemini</h2>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="Закрыть">×</button>
+      </div>
+      <p class="dialog-note">Ключ сохраняется только в localStorage этого браузера и не записывается в GitHub.</p>
+      <label class="field">
+        <span>Gemini API Key</span>
+        <input id="apiKey" type="password" autocomplete="off" placeholder="AIza..." />
+      </label>
+      <div class="dialog-actions">
+        <button class="secondary-btn" type="button" id="clearKeyBtn">Очистить</button>
+        <button class="generate-btn small" value="default" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </dialog>
 
-        document.getElementById('send-btn').addEventListener('click', generateContent);
-        document.getElementById('clear-btn').addEventListener('click', () => {
-            currentCode = { html: '', css: '', js: '' };
-            renderCanvas();
-            console.log("Холст очищен.");
-        });
-
-        async function generateContent() {
-            const promptInput = document.getElementById('prompt-input');
-            const prompt = promptInput.value.trim();
-            const statusText = document.getElementById('status-text');
-
-            if (!prompt) return;
-
-            statusText.innerText = 'Запрос отправлен...';
-            console.log(`Запрос: "${prompt}"`);
-
-            const contextInfo = selectedElement 
-                ? `Элемент: "${selectedElement.outerHTML}".`
-                : `Код: HTML:"${currentCode.html}", CSS:"${currentCode.css}", JS:"${currentCode.js}".`;
-
-            const systemPrompt = `Ты — генератор веб-компонентов. Отвечай СТРОГО в формате JSON без markdown разметки (без \`\`\`json).
-Формат:
-{
-  "html": "HTML код",
-  "css": "CSS стили (без <style>)",
-  "js": "JavaScript код (без <script>)"
-}
-Контекст: ${contextInfo}
-Запрос: "${prompt}"`;
-
-            let success = false;
-
-            for (const model of MODELS_TO_TRY) {
-                console.log(`Пробуем модель: ${model}...`);
-                try {
-                    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`, {
-                        method: 'POST',
-                        headers: { 
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            contents: [{ parts: [{ text: systemPrompt }] }]
-                        })
-                    });
-
-                    if (!response.ok) {
-                        const errData = await response.json().catch(() => ({}));
-                        console.error(`Модель ${model} вернула статус ${response.status}: ${errData.error?.message || 'Неизвестная ошибка'}`);
-                        continue;
-                    }
-
-                    const data = await response.json();
-                    const rawText = data.candidates[0].content.parts[0].text;
-                    const cleanJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-                    const parsed = JSON.parse(cleanJson);
-
-                    updateProject(parsed);
-                    promptInput.value = '';
-                    statusText.innerText = 'Готово!';
-                    console.log(`Успешно сгенерировано через ${model}!`);
-                    success = true;
-                    break;
-                } catch (err) {
-                    console.error(`Ошибка при вызове ${model}: ${err.message}`);
-                }
-            }
-
-            if (!success) {
-                statusText.innerText = 'Ошибка генерации!';
-                console.error("Не удалось получить ответ от моделей. Убедитесь, что включен VPN!");
-            }
-        }
-
-        function updateProject(parsed) {
-            if (parsed.html) currentCode.html += '\n' + parsed.html;
-            if (parsed.css) currentCode.css += '\n' + parsed.css;
-            if (parsed.js) currentCode.js += '\n' + parsed.js;
-
-            renderCanvas();
-        }
-
-        function renderCanvas() {
-            const canvas = document.getElementById('canvas');
-            canvas.innerHTML = currentCode.html;
-
-            let styleTag = document.getElementById('dynamic-styles');
-            if (!styleTag) {
-                styleTag = document.createElement('style');
-                styleTag.id = 'dynamic-styles';
-                document.head.appendChild(styleTag);
-            }
-            styleTag.textContent = currentCode.css;
-
-            Array.from(canvas.children).forEach(el => {
-                el.classList.add('draggable-element');
-                makeElementInteractive(el);
-            });
-        }
-
-        function makeElementInteractive(element) {
-            let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
-
-            element.addEventListener('touchstart', handleStart, { passive: false });
-            element.addEventListener('mousedown', handleStart);
-
-            function handleStart(e) {
-                document.querySelectorAll('.draggable-element').forEach(item => item.classList.remove('selected'));
-                element.classList.add('selected');
-                selectedElement = element;
-
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-                startX = clientX;
-                startY = clientY;
-                initialLeft = element.offsetLeft;
-                initialTop = element.offsetTop;
-
-                if (e.touches) {
-                    window.addEventListener('touchmove', handleMove, { passive: false });
-                    window.addEventListener('touchend', handleEnd);
-                } else {
-                    window.addEventListener('mousemove', handleMove);
-                    window.addEventListener('mouseup', handleEnd);
-                }
-            }
-
-            function handleMove(e) {
-                if (e.cancelable) e.preventDefault();
-
-                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-
-                const deltaX = clientX - startX;
-                const deltaY = clientY - startY;
-
-                element.style.left = (initialLeft + deltaX) + 'px';
-                element.style.top = (initialTop + deltaY) + 'px';
-            }
-
-            function handleEnd() {
-                window.removeEventListener('touchmove', handleMove);
-                window.removeEventListener('touchend', handleEnd);
-                window.removeEventListener('mousemove', handleMove);
-                window.removeEventListener('mouseup', handleEnd);
-
-                currentCode.html = document.getElementById('canvas').innerHTML;
-            }
-        }
-
-        // --- МОДАЛЬНОЕ ОКНО РЕДАКТОРА КОДА ---
-        const modal = document.getElementById('code-modal');
-        const editor = document.getElementById('code-editor');
-
-        document.getElementById('open-code-btn').addEventListener('click', () => {
-            modal.style.display = 'flex';
-            switchTab(currentTab);
-        });
-
-        function closeModal() { modal.style.display = 'none'; }
-
-        function switchTab(tab, e) {
-            currentCode[currentTab] = editor.value;
-            currentTab = tab;
-            if (e) {
-                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                e.target.classList.add('active');
-            }
-            editor.value = currentCode[tab];
-        }
-
-        function applyCodeChanges() {
-            currentCode[currentTab] = editor.value;
-            renderCanvas();
-            closeModal();
-            console.log("Изменения кода применены вручную.");
-        }
-
-        // --- СКАЧИВАНИЕ ZIP ---
-        document.getElementById('download-zip-btn').addEventListener('click', () => {
-            const zip = new JSZip();
-            const indexContent = `<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Сгенерированный сайт</title>
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-${currentCode.html}
-    <script src="script.js"><\/script>
+  <script src="app.js"></script>
 </body>
-</html>`;
-
-            zip.file("index.html", indexContent);
-            zip.file("style.css", currentCode.css);
-            zip.file("script.js", currentCode.js);
-
-            zip.generateAsync({ type: "blob" }).then(function (content) {
-                const a = document.createElement("a");
-                a.href = URL.createObjectURL(content);
-                a.download = "site-project.zip";
-                a.click();
-                console.log("ZIP-архив успешно создан и скачан.");
-            });
-        });
-    </script>
-</body>
-                                                                                        </html>
+</html>
